@@ -1,0 +1,32 @@
+[
+  {
+    "name": "System Administrator",
+    "email": "admin@ticketq.com",
+    "password": "Admin123!",
+    "role": "admin"
+  },
+  {
+    "name": "Support Agent",
+    "email": "agent@ticketq.com", 
+    "password": "Agent123!",
+    "role": "agent"
+  },
+  {
+    "name": "Demo User",
+    "email": "user@ticketq.com",
+    "password": "User123!",
+    "role": "user"
+  },
+  {
+    "name": "John Smith",
+    "email": "john.smith@ticketq.com",
+    "password": "User123!",
+    "role": "agent"
+  },
+  {
+    "name": "Sarah Wilson",
+    "email": "sarah.wilson@ticketq.com",
+    "password": "User123!",
+    "role": "agent"
+  }
+]
