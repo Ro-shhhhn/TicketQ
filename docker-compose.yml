@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongo:
+    image: mongo:7.0
+    container_name: ticketq-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: ticketq
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - ticketq-network
+
+  # Backend API Server
+  api:
+    build: 
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: ticketq-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - MONGO_URI=mongodb://mongo:27017/ticketq
+      - JWT_SECRET=your-super-secret-jwt-key-change-me
+      - STUB_MODE=true
+      - AUTO_CLOSE_ENABLED=true
+      - CONFIDENCE_THRESHOLD=0.78
+    depends_on:
+      - mongo
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    networks:
+      - ticketq-network
+
+  # Frontend Client
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: ticketq-client
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:5000/api
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    networks:
+      - ticketq-network
+
+volumes:
+  mongo_data:
+
+networks:
+  ticketq-network:
+    driver: bridge
