@@ -26,11 +26,11 @@ function App() {
               } 
             />
             
-            {/* Default route */}
-            <Route path="/" element={<Navigate to="/login" />} />
+            {/* Default route - redirect to dashboard if authenticated, login if not */}
+            <Route path="/" element={<Navigate to="/dashboard" />} />
             
             {/* 404 route */}
-            <Route path="*" element={<Navigate to="/login" />} />
+            <Route path="*" element={<Navigate to="/dashboard" />} />
           </Routes>
         </div>
       </Router>
