@@ -16,9 +16,17 @@
     "docker:up": "docker-compose up --build",
     "docker:down": "docker-compose down"
   },
-  "keywords": ["helpdesk", "ai", "triage", "mern"],
+  "keywords": [
+    "helpdesk",
+    "ai",
+    "triage",
+    "mern"
+  ],
   "author": "Your Name",
   "license": "MIT",
+  "dependencies": {
+    "uuid": "^9.0.1"
+  },
   "devDependencies": {
     "concurrently": "^8.2.2"
   }

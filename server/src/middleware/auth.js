@@ -31,3 +31,21 @@ export const authenticateToken = async (req, res, next) => {
     res.status(500).json({ message: 'Authentication failed' })
   }
 }
+
+export const requireAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ 
+      message: 'Admin access required' 
+    })
+  }
+  next()
+}
+
+export const requireAgent = (req, res, next) => {
+  if (!['agent', 'admin'].includes(req.user.role)) {
+    return res.status(403).json({ 
+      message: 'Agent or admin access required' 
+    })
+  }
+  next()
+}

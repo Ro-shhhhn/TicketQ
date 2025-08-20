@@ -1,4 +1,5 @@
 import Ticket from '../models/Ticket.js'
+import TriageWorkflow from '../../../agent/workflows/triageWorkflow.js'
 
 export const createTicket = async (req, res) => {
   try {
@@ -36,8 +37,11 @@ export const createTicket = async (req, res) => {
     // Populate the createdBy field for response
     await ticket.populate('createdBy', 'name email role')
 
-    // TODO: Trigger agent triage workflow here
-    // For now, just return the created ticket
+    // Trigger agent triage workflow asynchronously
+    const triage = new TriageWorkflow()
+    triage.processTicket(ticket._id).catch(error => {
+      console.error('Triage workflow failed:', error)
+    })
 
     res.status(201).json({
       message: 'Ticket created successfully',
