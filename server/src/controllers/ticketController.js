@@ -1,4 +1,6 @@
 import Ticket from '../models/Ticket.js'
+import AgentSuggestion from '../models/AgentSuggestion.js'
+import AuditLog from '../models/AuditLog.js'
 import TriageWorkflow from '../../../agent/workflows/triageWorkflow.js'
 
 export const createTicket = async (req, res) => {
@@ -154,6 +156,177 @@ export const getTicketById = async (req, res) => {
 
     res.status(500).json({ 
       message: 'Unable to fetch ticket. Please try again.' 
+    })
+  }
+}
+
+// GET /api/tickets/agent - Get tickets for agents
+export const getAgentTickets = async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query
+    const agentId = req.user._id
+
+    // Agents see: assigned tickets + unassigned waiting_human tickets
+    let filter = {
+      $or: [
+        { assignee: agentId },
+        { status: 'waiting_human', assignee: null }
+      ]
+    }
+
+    if (status) filter.status = status
+
+    const skip = (page - 1) * limit
+    
+    const tickets = await Ticket.find(filter)
+      .populate('createdBy', 'name email role')
+      .populate('assignee', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+
+    const total = await Ticket.countDocuments(filter)
+
+    res.json({
+      tickets,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    })
+
+  } catch (error) {
+    console.error('Get agent tickets error:', error)
+    res.status(500).json({ 
+      message: 'Unable to fetch tickets. Please try again.' 
+    })
+  }
+}
+
+// GET /api/agent/suggestion/:ticketId - Get AI suggestion for ticket
+export const getSuggestion = async (req, res) => {
+  try {
+    const { ticketId } = req.params
+
+    const suggestion = await AgentSuggestion.findOne({ ticketId })
+      .populate('articleIds', 'title')
+
+    if (!suggestion) {
+      return res.status(404).json({ message: 'No AI suggestion found for this ticket' })
+    }
+
+    res.json({ suggestion })
+
+  } catch (error) {
+    console.error('Get suggestion error:', error)
+    res.status(500).json({ 
+      message: 'Unable to fetch suggestion. Please try again.' 
+    })
+  }
+}
+
+// POST /api/tickets/:id/reply - Agent sends reply
+export const sendReply = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { content, action = 'resolve' } = req.body
+    const agentId = req.user._id
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ message: 'Reply content is required' })
+    }
+
+    const ticket = await Ticket.findById(id)
+    if (!ticket) {
+      return res.status(404).json({ message: 'Ticket not found' })
+    }
+
+    // Add agent reply
+    ticket.replies.push({
+      author: agentId,
+      authorType: 'agent',
+      content: content.trim()
+    })
+
+    // Update status based on action
+    if (action === 'resolve') {
+      ticket.status = 'resolved'
+    }
+
+    // Assign to agent if not already assigned
+    if (!ticket.assignee) {
+      ticket.assignee = agentId
+    }
+
+    await ticket.save()
+    await ticket.populate(['createdBy', 'assignee'], 'name email')
+
+    // Log the action
+    const auditLog = new AuditLog({
+      ticketId: ticket._id,
+      traceId: `agent-${Date.now()}`,
+      actor: 'agent',
+      action: 'REPLY_SENT',
+      meta: {
+        agentId: agentId.toString(),
+        replyLength: content.length,
+        newStatus: ticket.status
+      }
+    })
+    await auditLog.save()
+
+    res.json({
+      message: 'Reply sent successfully',
+      ticket
+    })
+
+  } catch (error) {
+    console.error('Send reply error:', error)
+    res.status(500).json({ 
+      message: 'Unable to send reply. Please try again.' 
+    })
+  }
+}
+
+// POST /api/tickets/:id/assign - Assign ticket to agent
+export const assignTicket = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { agentId } = req.body
+
+    const ticket = await Ticket.findById(id)
+    if (!ticket) {
+      return res.status(404).json({ message: 'Ticket not found' })
+    }
+
+    ticket.assignee = agentId || req.user._id
+    await ticket.save()
+    await ticket.populate(['createdBy', 'assignee'], 'name email')
+
+    // Log the action
+    const auditLog = new AuditLog({
+      ticketId: ticket._id,
+      traceId: `assign-${Date.now()}`,
+      actor: 'agent',
+      action: 'TICKET_ASSIGNED',
+      meta: {
+        assignedTo: ticket.assignee.toString(),
+        assignedBy: req.user._id.toString()
+      }
+    })
+    await auditLog.save()
+
+    res.json({
+      message: 'Ticket assigned successfully',
+      ticket
+    })
+
+  } catch (error) {
+    console.error('Assign ticket error:', error)
+    res.status(500).json({ 
+      message: 'Unable to assign ticket. Please try again.' 
     })
   }
 }

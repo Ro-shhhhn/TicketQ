@@ -1,6 +1,7 @@
 import { useAuth } from '../../context/AuthContext'
 import UserDashboard from './UserDashboard'
 import AdminDashboard from '../admin/AdminDashboard'
+import AgentDashboard from '../agent/AgentDashboard'
 import ComingSoonDashboard from './ComingSoonDashboard'
 
 const Dashboard = () => {
@@ -13,7 +14,7 @@ const Dashboard = () => {
     case 'admin':
       return <AdminDashboard />
     case 'agent':
-      return <ComingSoonDashboard role={user.role} />
+      return <AgentDashboard />
     default:
       return <ComingSoonDashboard role="unknown" />
   }

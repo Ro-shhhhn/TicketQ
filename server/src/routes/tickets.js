@@ -1,19 +1,32 @@
 import express from 'express'
-import { createTicket, getTickets, getTicketById } from '../controllers/ticketController.js'
-import { authenticateToken } from '../middleware/auth.js'
+import { 
+  createTicket, 
+  getTickets, 
+  getTicketById, 
+  getAgentTickets,
+  sendReply,
+  assignTicket
+} from '../controllers/ticketController.js'
+import { authenticateToken, requireAgent } from '../middleware/auth.js'
 
 const router = express.Router()
 
 // All ticket routes require authentication
 router.use(authenticateToken)
 
-// POST /api/tickets - Create new ticket
-router.post('/', createTicket)
+// IMPORTANT: Agent routes must come BEFORE generic routes
+// Agent-specific routes (must be before /:id route)
+router.get('/agent', requireAgent, getAgentTickets)
 
-// GET /api/tickets - Get user's tickets with filters
+// User routes
+router.post('/', createTicket)
 router.get('/', getTickets)
 
-// GET /api/tickets/:id - Get specific ticket
+// Agent action routes (must be before /:id route)
+router.post('/:id/reply', requireAgent, sendReply)
+router.post('/:id/assign', requireAgent, assignTicket)
+
+// Generic route (must be last)
 router.get('/:id', getTicketById)
 
 export default router
