@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.js'
 import ticketRoutes from './routes/tickets.js'
 import kbRoutes from './routes/kb.js'
 import agentRoutes from './routes/agent.js'
+import configRoutes from './routes/config.js'
 
 const app = express()
 
@@ -44,6 +45,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/tickets', ticketRoutes)
 app.use('/api/kb', kbRoutes)
 app.use('/api/agent', agentRoutes)
+app.use('/api/config', configRoutes)
 
 // Health check endpoints
 app.get('/api/health', (req, res) => {

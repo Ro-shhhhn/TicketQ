@@ -14,6 +14,11 @@ services:
       - mongo_data:/data/db
     networks:
       - ticketq-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Backend API Server
   api:
@@ -25,20 +30,27 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - PORT=5000
       - MONGO_URI=mongodb://mongo:27017/ticketq
-      - JWT_SECRET=your-super-secret-jwt-key-change-me
+      - JWT_SECRET=your-super-secret-jwt-key-change-me-in-production
       - STUB_MODE=true
       - AUTO_CLOSE_ENABLED=true
       - CONFIDENCE_THRESHOLD=0.78
+      - CLIENT_URL=http://localhost:3000
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     volumes:
       - ./server:/app
       - /app/node_modules
     networks:
       - ticketq-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Frontend Client
   client:
@@ -51,6 +63,9 @@ services:
       - "3000:3000"
     environment:
       - VITE_API_URL=http://localhost:5000/api
+    depends_on:
+      api:
+        condition: service_healthy
     volumes:
       - ./client:/app
       - /app/node_modules
@@ -59,6 +74,7 @@ services:
 
 volumes:
   mongo_data:
+    driver: local
 
 networks:
   ticketq-network:

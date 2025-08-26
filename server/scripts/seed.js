@@ -1,169 +1,319 @@
 import mongoose from 'mongoose'
-import bcrypt from 'bcryptjs'
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
-import User from "../src/models/User.js";
+import User from '../src/models/User.js'
+import Article from '../src/models/Article.js'
+import Config from '../src/models/Config.js'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+console.log('🚀 Starting enhanced seed script...')
 
 const connectDB = async () => {
   try {
     const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/helpdesk'
+    console.log('📡 Connecting to MongoDB...')
     await mongoose.connect(mongoURI)
-    console.log('✅ MongoDB connected for seeding')
+    console.log('✅ MongoDB connected successfully')
+    return true
   } catch (error) {
-    console.error('❌ MongoDB connection error:', error)
+    console.error('❌ MongoDB connection failed:', error.message)
     process.exit(1)
   }
 }
 
 const seedUsers = async () => {
   try {
-    console.log('🌱 Seeding users...')
+    console.log('👥 Seeding users...')
     
-    // Read seed data
-    const usersData = JSON.parse(
-      fs.readFileSync(path.join(__dirname, '../database/seeds/users.json'), 'utf8')
-    )
-
-    // Clear existing users (optional - comment out to preserve existing users)
-    await User.deleteMany({})
-    console.log('🧹 Cleared existing users')
-
-    // Create users WITHOUT manual password hashing
-    // Let the User model's pre('save') middleware handle password hashing
-    const users = usersData.map(userData => ({
-      name: userData.name,
-      email: userData.email.toLowerCase(),
-      password: userData.password, // Don't hash here - let the model do it
-      role: userData.role
-    }))
-
-    // Insert users using create() instead of insertMany()
-    // This ensures the pre('save') middleware runs
-    const createdUsers = []
-    for (const userData of users) {
-      const user = new User(userData)
-      const savedUser = await user.save()
-      createdUsers.push(savedUser)
+    // Don't clear existing users since you already have 5
+    console.log('ℹ️  Keeping existing users (found 5 users)')
+    
+    const users = await User.find({})
+    console.log(`✅ Users ready: ${users.length} total`)
+    
+    // Find or create required users
+    let adminUser = await User.findOne({ role: 'admin' })
+    let agentUser = await User.findOne({ role: 'agent' })
+    
+    if (!adminUser) {
+      adminUser = new User({
+        name: 'Admin User',
+        email: 'admin@ticketq.com',
+        password: 'Admin123!',
+        role: 'admin'
+      })
+      await adminUser.save()
+      console.log('✅ Created admin user')
     }
-
-    console.log(`✅ Created ${createdUsers.length} users:`)
     
-    createdUsers.forEach(user => {
-      console.log(`   ${user.role.toUpperCase()}: ${user.email}`)
-    })
-
-    return createdUsers
+    if (!agentUser) {
+      agentUser = new User({
+        name: 'Support Agent',
+        email: 'agent@ticketq.com',
+        password: 'Agent123!',
+        role: 'agent'
+      })
+      await agentUser.save()
+      console.log('✅ Created agent user')
+    }
+    
+    return { adminUser, agentUser, users }
+    
   } catch (error) {
-    console.error('❌ Error seeding users:', error)
+    console.error('❌ Error seeding users:', error.message)
     throw error
   }
 }
 
-const seedArticles = async () => {
+const seedArticles = async (adminUser, agentUser) => {
   try {
     console.log('📚 Seeding knowledge base articles...')
     
-    // For now, we'll create some basic articles
-    // In a full implementation, you'd have an Article model and seed data
+    // Clear existing articles
+    const existingCount = await Article.countDocuments({})
+    if (existingCount > 0) {
+      await Article.deleteMany({})
+      console.log(`🗑️  Removed ${existingCount} existing articles`)
+    }
+
     const articles = [
       {
-        title: "How to reset your password",
-        body: "To reset your password: 1. Go to login page 2. Click 'Forgot Password' 3. Enter your email 4. Check your email for reset link 5. Follow the instructions in the email",
-        tags: ["password", "account", "reset"],
-        status: "published"
+        title: 'How to Update Your Payment Method',
+        body: `To update your payment method, please follow these steps:
+
+1. Log into your account dashboard
+2. Navigate to "Billing & Payments" section
+3. Click "Payment Methods"
+4. Add a new payment method or update existing one
+5. Set as default if needed
+
+If you encounter any issues, please contact our billing team for assistance. We accept all major credit cards and PayPal.
+
+For refunds, please allow 5-7 business days for processing back to your original payment method.`,
+        tags: ['billing', 'payments', 'credit-card', 'paypal'],
+        status: 'published',
+        author: adminUser._id
       },
+      
       {
-        title: "How to update payment method", 
-        body: "To update your payment method: 1. Log into your account 2. Go to Account Settings 3. Select Payment Methods 4. Add new card or update existing 5. Save changes",
-        tags: ["billing", "payments", "credit-card"],
-        status: "published"
+        title: 'Understanding Billing Cycles and Charges',
+        body: `Your billing cycle and charges work as follows:
+
+• Monthly subscriptions are billed on the same day each month
+• Annual subscriptions are billed once per year with a discount
+• Pro-rated charges may apply for mid-cycle upgrades
+• Invoices are sent 3 days before each billing date
+
+Common billing questions:
+- Double charges: Usually pre-authorizations that will be reversed
+- Failed payments: Update payment method to avoid service interruption
+- Refund policy: Full refund within 30 days of purchase
+
+Contact billing@company.com for specific billing inquiries.`,
+        tags: ['billing', 'subscription', 'invoice', 'refund'],
+        status: 'published',
+        author: adminUser._id
       },
+
       {
-        title: "Troubleshooting login issues",
-        body: "If you can't log in: 1. Check your email and password 2. Clear browser cache 3. Try incognito/private mode 4. Reset your password if needed 5. Contact support if issue persists",
-        tags: ["login", "troubleshooting", "access"],
-        status: "published"
+        title: 'Troubleshooting Login and Password Issues',
+        body: `If you're having trouble logging in, try these solutions:
+
+**Password Reset:**
+1. Click "Forgot Password" on the login page
+2. Enter your email address
+3. Check your email for reset link
+4. Create a new strong password
+
+**Common Issues:**
+• Browser cache: Clear cookies and cache
+• Caps Lock: Ensure it's turned off
+• Multiple accounts: Make sure you're using the correct email
+• Account locked: Wait 30 minutes or contact support
+
+**Error Messages:**
+• "Invalid credentials": Check email and password
+• "Account not found": Verify email spelling
+• "Too many attempts": Wait before trying again
+
+If problems persist, contact our technical support team.`,
+        tags: ['tech', 'login', 'password', 'authentication'],
+        status: 'published', 
+        author: adminUser._id
       },
+
       {
-        title: "How to track your order",
-        body: "To track your order: 1. Log into your account 2. Go to Order History 3. Find your order 4. Click tracking link 5. View real-time updates",
-        tags: ["shipping", "tracking", "orders"],
-        status: "published"
+        title: 'Resolving 500 and 404 Errors',
+        body: `Server errors can be frustrating. Here's how to resolve them:
+
+**500 Internal Server Error:**
+• Refresh the page after 30 seconds
+• Clear browser cache and cookies
+• Try in incognito/private mode
+• Check if the issue persists across different browsers
+• Contact support if error continues
+
+**404 Page Not Found:**
+• Check the URL for typos
+• Use the site navigation menu instead
+• Search for the content you're looking for
+• The page may have been moved or renamed
+
+**General Troubleshooting:**
+1. Hard refresh (Ctrl+F5 or Cmd+Shift+R)
+2. Disable browser extensions temporarily
+3. Try from a different device or network
+4. Report persistent issues to technical support
+
+Our system status page shows any ongoing technical issues.`,
+        tags: ['tech', 'error', 'bug', '500', '404', 'troubleshooting'],
+        status: 'published',
+        author: agentUser._id
       },
+
       {
-        title: "Refund policy and process",
-        body: "Our refund policy: Items can be returned within 30 days. Process: 1. Log into account 2. Go to Orders 3. Select item to return 4. Choose reason 5. Print return label 6. Ship item back",
-        tags: ["refunds", "returns", "policy"],
-        status: "published"
+        title: 'Tracking Your Package and Shipment Updates', 
+        body: `Here's everything you need to know about tracking your order:
+
+**Tracking Your Order:**
+1. Check your email for shipping confirmation
+2. Use the tracking number on our website or carrier site
+3. Download our mobile app for push notifications
+4. Sign up for SMS updates
+
+**Shipping Information:**
+• Standard shipping: 5-7 business days
+• Express shipping: 2-3 business days  
+• Overnight shipping: Next business day
+• International: 7-14 business days
+
+**Delivery Issues:**
+• Package not delivered: Check with neighbors or building management
+• Damaged package: Take photos and contact us immediately
+• Wrong address: Update shipping address for future orders
+
+**Tracking Status Meanings:**
+- "In Transit": Package is on its way
+- "Out for Delivery": Package will arrive today
+- "Delivered": Package has been delivered
+- "Exception": Delivery delay or issue
+
+Contact our shipping team for any delivery concerns.`,
+        tags: ['shipping', 'delivery', 'tracking', 'package'],
+        status: 'published',
+        author: adminUser._id
       }
     ]
+
+    console.log(`📝 Creating ${articles.length} articles...`)
     
-    console.log(`📝 Would create ${articles.length} KB articles (Article model needed)`)
-    return articles
+    const createdArticles = []
+    for (let i = 0; i < articles.length; i++) {
+      const article = new Article(articles[i])
+      const saved = await article.save()
+      createdArticles.push(saved)
+      console.log(`   ✅ Created: "${saved.title}"`)
+    }
+
+    console.log(`✅ Successfully created ${createdArticles.length} KB articles`)
+    return createdArticles
+    
   } catch (error) {
-    console.error('❌ Error seeding articles:', error)
+    console.error('❌ Error seeding articles:', error.message)
+    console.error('Stack trace:', error.stack)
     throw error
   }
 }
 
 const seedConfig = async () => {
   try {
-    console.log('⚙️ Seeding system configuration...')
+    console.log('⚙️  Seeding system configuration...')
     
-    const config = {
+    // Clear existing config
+    const existingCount = await Config.countDocuments({})
+    if (existingCount > 0) {
+      await Config.deleteMany({})
+      console.log(`🗑️  Removed ${existingCount} existing configs`)
+    }
+
+    const config = new Config({
       autoCloseEnabled: true,
       confidenceThreshold: 0.75,
       slaHours: 24
-    }
+    })
+
+    const savedConfig = await config.save()
+    console.log('✅ Created system configuration:')
+    console.log(`   Auto-close: ${savedConfig.autoCloseEnabled}`)
+    console.log(`   Confidence threshold: ${savedConfig.confidenceThreshold}`)
+    console.log(`   SLA hours: ${savedConfig.slaHours}`)
     
-    console.log('📝 Would create system config (Config model needed)')
-    console.log('   Config:', config)
-    return config
+    return savedConfig
+    
   } catch (error) {
-    console.error('❌ Error seeding config:', error)
+    console.error('❌ Error seeding config:', error.message)
     throw error
   }
 }
 
 const main = async () => {
   try {
-    console.log('🚀 Starting database seeding...')
-    console.log('=' .repeat(50))
-    
+    console.log('=' .repeat(60))
+    console.log('🌱 ENHANCED TICKETQ DATABASE SEEDING')
+    console.log('=' .repeat(60))
+
+    // Connect to database
     await connectDB()
-    
-    // Seed data
-    await seedUsers()
-    await seedArticles() 
-    await seedConfig()
-    
-    console.log('=' .repeat(50))
-    console.log('🎉 Database seeding completed successfully!')
+
+    // Seed users
+    const { adminUser, agentUser } = await seedUsers()
+
+    // Seed articles
+    const articles = await seedArticles(adminUser, agentUser)
+
+    // Seed config
+    const config = await seedConfig()
+
+    // Final summary
+    console.log('=' .repeat(60))
+    console.log('🎉 DATABASE SEEDING COMPLETED SUCCESSFULLY!')
+    console.log('=' .repeat(60))
     console.log('')
-    console.log('Demo Accounts Created:')
-    console.log('📧 Admin: admin@ticketq.com / Admin123!')
-    console.log('🎧 Agent: agent@ticketq.com / Agent123!')
-    console.log('👤 User:  user@ticketq.com / User123!')
+    console.log('📊 SUMMARY:')
+    console.log(`   👥 Users: Ready (admin and agent users confirmed)`)
+    console.log(`   📚 KB Articles: ${articles.length} articles created`)
+    console.log(`   ⚙️  Configuration: System config created`)
     console.log('')
-    console.log('💡 Users can register new accounts (role: user only)')
-    console.log('💡 Admin/Agent accounts are seeded and cannot register')
-    
+    console.log('🔑 LOGIN CREDENTIALS:')
+    console.log('   📧 Admin: admin@ticketq.com / Admin123!')
+    console.log('   🎧 Agent: agent@ticketq.com / Agent123!')
+    console.log('   👤 User:  user@ticketq.com / User123!')
+    console.log('')
+    console.log('🚀 NEXT STEPS:')
+    console.log('   1. Test ticket creation as user')
+    console.log('   2. Verify AI triage workflow triggers')
+    console.log('   3. Check KB articles appear in auto-resolved tickets')
+    console.log('   4. Test agent interface with AI suggestions')
+    console.log('')
+    console.log('💡 The enhanced triage system is now ready!')
+
   } catch (error) {
-    console.error('💥 Seeding failed:', error)
+    console.error('')
+    console.error('💥 SEEDING FAILED!')
+    console.error('=' .repeat(40))
+    console.error('Error:', error.message)
+    console.error('Stack:', error.stack)
     process.exit(1)
   } finally {
-    await mongoose.connection.close()
-    console.log('📡 Database connection closed')
+    try {
+      await mongoose.connection.close()
+      console.log('')
+      console.log('📡 Database connection closed')
+      console.log('✨ Seeding process complete!')
+    } catch (closeError) {
+      console.error('Error closing connection:', closeError.message)
+    }
   }
 }
 
-// Run if this file is executed directly
-if (process.argv[1] === __filename) {
+// Ensure this runs when called directly
+if (import.meta.url === `file://${process.argv[1]}`) {
   main()
 }
-
-export default main

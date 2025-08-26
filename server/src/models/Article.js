@@ -9,14 +9,13 @@ const articleSchema = new mongoose.Schema({
   },
   body: {
     type: String,
-    required: [true, 'Body content is required'],
+    required: [true, 'Body is required'],
     trim: true,
-    maxlength: [5000, 'Body cannot exceed 5000 characters']
+    maxlength: [10000, 'Body cannot exceed 10000 characters']
   },
   tags: [{
     type: String,
     trim: true,
-    lowercase: true,
     maxlength: [50, 'Tag cannot exceed 50 characters']
   }],
   status: {
@@ -26,48 +25,65 @@ const articleSchema = new mongoose.Schema({
       message: 'Status must be draft or published'
     },
     default: 'draft'
-  },
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  lastUpdatedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
   }
 }, {
   timestamps: true
 })
 
-// Indexes for search performance
-articleSchema.index({ status: 1, createdAt: -1 })
-articleSchema.index({ tags: 1, status: 1 })
+// Text indexes for search
 articleSchema.index({ 
   title: 'text', 
   body: 'text', 
   tags: 'text' 
 }, {
-  weights: { title: 3, tags: 2, body: 1 }
+  weights: {
+    title: 10,
+    tags: 5,
+    body: 1
+  }
 })
 
+// Status and timestamp index
+articleSchema.index({ status: 1, updatedAt: -1 })
+
 // Static method for searching articles
-articleSchema.statics.search = function(query, options = {}) {
-  const { status = 'published', limit = 10 } = options
-  
-  if (!query) {
-    return this.find({ status }).limit(limit).sort({ createdAt: -1 })
+articleSchema.statics.search = async function(query, options = {}) {
+  const {
+    status = 'published',
+    limit = 10,
+    skip = 0
+  } = options
+
+  let filter = { status }
+  let sort = { updatedAt: -1 }
+
+  if (query && query.trim()) {
+    // Use text search if query provided
+    filter.$text = { $search: query.trim() }
+    sort = { score: { $meta: 'textScore' }, updatedAt: -1 }
+    
+    return await this.find(filter)
+      .select({ score: { $meta: 'textScore' }, title: 1, body: 1, tags: 1, updatedAt: 1 })
+      .sort(sort)
+      .limit(limit)
+      .skip(skip)
+      .lean()
+  } else {
+    // Return recent articles if no query
+    return await this.find(filter)
+      .select({ title: 1, body: 1, tags: 1, updatedAt: 1 })
+      .sort(sort)
+      .limit(limit)
+      .skip(skip)
+      .lean()
   }
-  
-  return this.find(
-    { 
-      status,
-      $text: { $search: query } 
-    },
-    { score: { $meta: 'textScore' } }
-  )
-  .sort({ score: { $meta: 'textScore' } })
-  .limit(limit)
+}
+
+// Instance method to get snippet
+articleSchema.methods.getSnippet = function(length = 200) {
+  return this.body.length > length 
+    ? this.body.substring(0, length) + '...'
+    : this.body
 }
 
 export default mongoose.model('Article', articleSchema)

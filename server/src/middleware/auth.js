@@ -12,7 +12,7 @@ export const authenticateToken = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
     const user = await User.findById(decoded.userId).select('-password')
-    
+        
     if (!user) {
       return res.status(401).json({ message: 'User not found' })
     }
@@ -26,7 +26,7 @@ export const authenticateToken = async (req, res, next) => {
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ message: 'Token expired' })
     }
-    
+        
     console.error('Auth middleware error:', error)
     res.status(500).json({ message: 'Authentication failed' })
   }
@@ -48,4 +48,22 @@ export const requireAgent = (req, res, next) => {
     })
   }
   next()
+}
+
+// Alternative names for compatibility (if needed by other parts)
+export const protect = authenticateToken
+export const authorize = (roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Access denied. Please authenticate first.' })
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ 
+        message: `Access denied. Required role: ${roles.join(' or ')}` 
+      })
+    }
+
+    next()
+  }
 }

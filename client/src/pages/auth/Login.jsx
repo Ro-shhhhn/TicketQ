@@ -194,21 +194,7 @@ const Login = () => {
             </p>
           </div>
 
-          {/* Demo Accounts Info */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-6">
-            <h3 className="text-sm font-medium text-gray-900 mb-2">Demo Accounts:</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              <div>
-                <strong>Admin:</strong> admin@ticketq.com / admin123
-              </div>
-              <div>
-                <strong>Agent:</strong> agent@ticketq.com / agent123
-              </div>
-              <div>
-                <strong>User:</strong> Register above or use user@ticketq.com / user123
-              </div>
-            </div>
-          </div>
+         
         </form>
       </div>
     </div>

@@ -1,33 +1,43 @@
 {
   "name": "ticketq",
   "version": "1.0.0",
-  "description": "Smart Helpdesk with Agentic Triage",
-  "main": "index.js",
+  "description": "Smart Helpdesk with AI Triage - MERN Stack Application",
+  "type": "module",
+  "main": "server/server.js",
   "scripts": {
     "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
     "server:dev": "cd server && npm run dev",
-    "client:dev": "cd client && npm run dev",
-    "build": "cd client && npm run build",
+    "client:dev": "cd client && npm run dev", 
+    "server:start": "cd server && npm start",
+    "client:build": "cd client && npm run build",
+    "seed": "cd server && node scripts/seed.js",
     "test": "npm run test:server && npm run test:client",
     "test:server": "cd server && npm test",
     "test:client": "cd client && npm test",
-    "seed": "cd server && npm run seed",
-    "setup": "./scripts/setup.sh",
-    "docker:up": "docker-compose up --build",
-    "docker:down": "docker-compose down"
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up",
+    "docker:down": "docker-compose down",
+    "docker:clean": "docker-compose down -v && docker system prune -f"
   },
   "keywords": [
     "helpdesk",
-    "ai",
-    "triage",
-    "mern"
+    "ai-triage", 
+    "mern-stack",
+    "ticket-management",
+    "knowledge-base",
+    "customer-support"
   ],
-  "author": "Your Name",
+  "author": "Roshan",
   "license": "MIT",
-  "dependencies": {
-    "uuid": "^9.0.1"
-  },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ro-shhhhn/ticketq"
   }
 }

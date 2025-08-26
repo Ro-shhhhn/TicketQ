@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { kbAPI } from '../../services/kb'
-import Navbar from '../../components/common/Navbar'
 
-const KBManagement = () => {
+const KBManagementEmbedded = () => {
   const { user } = useAuth()
   const [articles, setArticles] = useState([])
   const [loading, setLoading] = useState(true)
@@ -81,17 +80,13 @@ const KBManagement = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="max-w-7xl mx-auto py-6 px-4">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-            <div className="h-12 bg-gray-200 rounded"></div>
-            <div className="space-y-4">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-24 bg-gray-200 rounded"></div>
-              ))}
-            </div>
+      <div className="p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-12 bg-gray-200 rounded"></div>
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-24 bg-gray-200 rounded"></div>
+            ))}
           </div>
         </div>
       </div>
@@ -99,16 +94,16 @@ const KBManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Knowledge Base Management</h1>
-          <p className="mt-2 text-gray-600">Create and manage help articles for support agents</p>
-        </div>
+    <>
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h2 className="text-xl font-semibold text-gray-900">Knowledge Base</h2>
+        <p className="mt-1 text-sm text-gray-600">
+          Create and manage help articles for support agents
+        </p>
+      </div>
 
+      <div className="p-6">
         {/* Error Message */}
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
@@ -173,11 +168,11 @@ const KBManagement = () => {
         )}
 
         {/* Articles List */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">
+        <div className="bg-gray-50 rounded-lg">
+          <div className="px-4 py-3 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">
               Articles ({articles.length})
-            </h2>
+            </h3>
           </div>
           
           {articles.length === 0 ? (
@@ -191,12 +186,12 @@ const KBManagement = () => {
           ) : (
             <div className="divide-y divide-gray-200">
               {articles.map((article) => (
-                <div key={article._id} className="px-6 py-4">
+                <div key={article._id} className="px-4 py-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      <h4 className="text-lg font-medium text-gray-900 mb-2">
                         {article.title}
-                      </h3>
+                      </h4>
                       <p className="text-gray-600 text-sm mb-3 line-clamp-2">
                         {article.body}
                       </p>
@@ -252,7 +247,7 @@ const KBManagement = () => {
           )}
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -298,7 +293,7 @@ const ArticleForm = ({ article, onClose, onArticleCreated, onArticleUpdated }) =
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-96 overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-medium text-gray-900">
             {isEditing ? 'Edit Article' : 'Create New Article'}
@@ -328,6 +323,7 @@ const ArticleForm = ({ article, onClose, onArticleCreated, onArticleUpdated }) =
               className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Article title"
               maxLength={200}
+              required
             />
           </div>
 
@@ -342,6 +338,7 @@ const ArticleForm = ({ article, onClose, onArticleCreated, onArticleUpdated }) =
               className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Article content"
               maxLength={5000}
+              required
             />
             <p className="text-xs text-gray-500 mt-1">
               {formData.body.length}/5000 characters
@@ -378,21 +375,29 @@ const ArticleForm = ({ article, onClose, onArticleCreated, onArticleUpdated }) =
             </select>
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 
-                (isEditing ? 'Updating...' : 'Creating...') : 
-                (isEditing ? 'Update Article' : 'Create Article')
-              }
+              {loading ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {isEditing ? 'Updating...' : 'Creating...'}
+                </span>
+              ) : (
+                isEditing ? 'Update Article' : 'Create Article'
+              )}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-gray-200 text-gray-800 py-2 rounded hover:bg-gray-300"
+              disabled={loading}
+              className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300 disabled:opacity-50"
             >
               Cancel
             </button>
@@ -403,4 +408,4 @@ const ArticleForm = ({ article, onClose, onArticleCreated, onArticleUpdated }) =
   )
 }
 
-export default KBManagement
+export default KBManagementEmbedded

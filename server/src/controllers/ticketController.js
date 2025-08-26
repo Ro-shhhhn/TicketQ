@@ -135,13 +135,21 @@ export const getTicketById = async (req, res) => {
     }
 
     // Check access permissions
-    if (userRole === 'user' && ticket.createdBy._id.toString() !== userId.toString()) {
-      return res.status(403).json({ message: 'Access denied' })
+    let hasAccess = false
+
+    if (userRole === 'admin') {
+      hasAccess = true
+    } else if (userRole === 'user') {
+      hasAccess = ticket.createdBy._id.toString() === userId.toString()
+    } else if (userRole === 'agent') {
+      hasAccess = (
+        (ticket.assignee && ticket.assignee._id.toString() === userId.toString()) ||
+        ['waiting_human', 'triaged'].includes(ticket.status) ||
+        ticket.createdBy._id.toString() === userId.toString()
+      )
     }
 
-    if (userRole === 'agent' && 
-        ticket.createdBy._id.toString() !== userId.toString() && 
-        (!ticket.assignee || ticket.assignee._id.toString() !== userId.toString())) {
+    if (!hasAccess) {
       return res.status(403).json({ message: 'Access denied' })
     }
 
@@ -160,17 +168,15 @@ export const getTicketById = async (req, res) => {
   }
 }
 
-// GET /api/tickets/agent - Get tickets for agents
 export const getAgentTickets = async (req, res) => {
   try {
     const { status, page = 1, limit = 20 } = req.query
     const agentId = req.user._id
 
-    // Agents see: assigned tickets + unassigned waiting_human tickets
     let filter = {
       $or: [
         { assignee: agentId },
-        { status: 'waiting_human', assignee: null }
+        { status: { $in: ['waiting_human', 'triaged'] }, assignee: null }
       ]
     }
 
@@ -205,19 +211,29 @@ export const getAgentTickets = async (req, res) => {
   }
 }
 
-// GET /api/agent/suggestion/:ticketId - Get AI suggestion for ticket
+// Enhanced getSuggestion with populated article data
 export const getSuggestion = async (req, res) => {
   try {
     const { ticketId } = req.params
 
     const suggestion = await AgentSuggestion.findOne({ ticketId })
-      .populate('articleIds', 'title')
+      .populate({
+        path: 'articleIds',
+        select: 'title body tags updatedAt',
+        match: { status: 'published' }
+      })
 
     if (!suggestion) {
       return res.status(404).json({ message: 'No AI suggestion found for this ticket' })
     }
 
-    res.json({ suggestion })
+    // Enrich suggestion with article data
+    const enrichedSuggestion = {
+      ...suggestion.toObject(),
+      articles: suggestion.articleIds || []
+    }
+
+    res.json({ suggestion: enrichedSuggestion })
 
   } catch (error) {
     console.error('Get suggestion error:', error)
@@ -227,7 +243,6 @@ export const getSuggestion = async (req, res) => {
   }
 }
 
-// POST /api/tickets/:id/reply - Agent sends reply
 export const sendReply = async (req, res) => {
   try {
     const { id } = req.params
@@ -253,6 +268,8 @@ export const sendReply = async (req, res) => {
     // Update status based on action
     if (action === 'resolve') {
       ticket.status = 'resolved'
+    } else if (action === 'keep_open') {
+      ticket.status = 'waiting_human'
     }
 
     // Assign to agent if not already assigned
@@ -261,8 +278,10 @@ export const sendReply = async (req, res) => {
     }
 
     await ticket.save()
-    await ticket.populate(['createdBy', 'assignee'], 'name email')
-
+await ticket.populate([
+  { path: 'createdBy', select: 'name email' },
+  { path: 'assignee', select: 'name email' }
+])
     // Log the action
     const auditLog = new AuditLog({
       ticketId: ticket._id,
@@ -272,7 +291,8 @@ export const sendReply = async (req, res) => {
       meta: {
         agentId: agentId.toString(),
         replyLength: content.length,
-        newStatus: ticket.status
+        newStatus: ticket.status,
+        action: action
       }
     })
     await auditLog.save()
@@ -290,7 +310,6 @@ export const sendReply = async (req, res) => {
   }
 }
 
-// POST /api/tickets/:id/assign - Assign ticket to agent
 export const assignTicket = async (req, res) => {
   try {
     const { id } = req.params
@@ -327,6 +346,56 @@ export const assignTicket = async (req, res) => {
     console.error('Assign ticket error:', error)
     res.status(500).json({ 
       message: 'Unable to assign ticket. Please try again.' 
+    })
+  }
+}
+
+export const getTicketAuditLog = async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = req.user._id
+    const userRole = req.user.role
+
+    // First check if user has access to this ticket
+    const ticket = await Ticket.findById(id)
+    if (!ticket) {
+      return res.status(404).json({ message: 'Ticket not found' })
+    }
+
+    // Check access permissions
+    let hasAccess = false
+
+    if (userRole === 'admin') {
+      hasAccess = true
+    } else if (userRole === 'user') {
+      hasAccess = ticket.createdBy.toString() === userId.toString()
+    } else if (userRole === 'agent') {
+      hasAccess = (
+        (ticket.assignee && ticket.assignee.toString() === userId.toString()) ||
+        ['waiting_human', 'triaged'].includes(ticket.status) ||
+        ticket.createdBy.toString() === userId.toString()
+      )
+    }
+
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied' })
+    }
+
+    // Get audit log
+    const auditLog = await AuditLog.find({ ticketId: id })
+      .sort({ timestamp: 1 }) // Chronological order
+
+    res.json({ auditLog })
+
+  } catch (error) {
+    console.error('Get audit log error:', error)
+    
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid ticket ID' })
+    }
+
+    res.status(500).json({ 
+      message: 'Unable to fetch audit log. Please try again.' 
     })
   }
 }

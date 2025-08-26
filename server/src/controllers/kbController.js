@@ -19,16 +19,11 @@ export const getArticles = async (req, res) => {
         status: status || 'published',
         limit: parseInt(limit)
       })
-      .populate('createdBy', 'name email')
-      .populate('lastUpdatedBy', 'name email')
-      .skip(skip)
     } else {
       // List all articles
       const filter = status ? { status } : {}
       
       articles = await Article.find(filter)
-        .populate('createdBy', 'name email')
-        .populate('lastUpdatedBy', 'name email')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
@@ -62,8 +57,6 @@ export const getArticleById = async (req, res) => {
     const { id } = req.params
 
     const article = await Article.findById(id)
-      .populate('createdBy', 'name email')
-      .populate('lastUpdatedBy', 'name email')
 
     if (!article) {
       return res.status(404).json({ message: 'Article not found' })
@@ -117,13 +110,10 @@ export const createArticle = async (req, res) => {
       title: title.trim(),
       body: body.trim(),
       tags: processedTags,
-      status: status || 'draft',
-      createdBy: req.user._id,
-      lastUpdatedBy: req.user._id
+      status: status || 'draft'
     })
 
     await article.save()
-    await article.populate('createdBy', 'name email')
 
     res.status(201).json({
       message: 'Article created successfully',
@@ -178,11 +168,8 @@ export const updateArticle = async (req, res) => {
         tags.split(',').map(tag => tag.trim().toLowerCase()).filter(tag => tag.length > 0) :
         []
     }
-    
-    article.lastUpdatedBy = req.user._id
 
     await article.save()
-    await article.populate(['createdBy', 'lastUpdatedBy'], 'name email')
 
     res.json({
       message: 'Article updated successfully',
